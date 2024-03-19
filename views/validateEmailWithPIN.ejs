@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Pin Validation</title>
+    <style>
+        /* Add your custom styles here */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #ffffff;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 5px;
+        }
+
+        h1 {
+            color: #333333;
+        }
+
+        p {
+            color: #666666;
+        }
+
+        .pin-container {
+            background-color: #f0f0f0;
+            padding: 10px;
+            text-align: center;
+            font-size: 24px;
+            margin-top: 20px;
+            border-radius: 5px;
+        }
+
+        .footer {
+            margin-top: 20px;
+            text-align: center;
+            color: #888888;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Email Pin Validation</h1>
+        <p>Your pin for validation is:</p>
+
+        <div class="pin-container">
+            <strong><%= pin %></strong>
+        </div>
+
+        <p>Please use this pin to validate your email address.</p>
+
+        <div class="footer">
+            <p>Thank you for using our services.</p>
+        </div>
+    </div>
+</body>
+</html>
