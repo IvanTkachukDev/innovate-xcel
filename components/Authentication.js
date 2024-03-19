@@ -26,6 +26,15 @@ class Authentication {
 
         return userSchema.validate(data).error;
     }
+
+    loginValidation(data) {
+        const loginSchema = Joi.object({
+            email: Joi.string().min(2).max(255).required(),
+            password: Joi.string().min(8).required()
+        });
+
+        return loginSchema.validate(data).error;
+    }
 }
 
 module.exports = Authentication
