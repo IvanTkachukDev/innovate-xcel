@@ -2,15 +2,19 @@ require('dotenv').config();
 
 const router = require('express').Router();
 const useragent = require('express-useragent');
+const bcrypt = require('bcryptjs');
+const requestIP = require('request-ip');
 
-const { errorResponse } = require('../../components/utils');
+const { errorResponse, extractFromObj } = require('../../components/utils');
 const Authentication = require('../../components/Authentication');
 const Mailer = require('../../components/Mailer');
+const User = require('../../components/User');
 const db = require('../../config/database');
 
 router.use(useragent.express());
 
 const auth = new Authentication()
+const user = new User()
 
 
 function sendPinToEmail(res, email, pin, message) {
@@ -85,4 +89,48 @@ router.post('/validate-email', (req, res) => {
 
 // PIN VALIDATION - USER ACCOUNT CREATION
 router.post('/register', (req, res) => {
+    const validationErrors = auth.registerValidation(req.body)
+    if (validationErrors) return errorResponse(res, validationErrors.details[0].message)
+
+    const { username, password, pin, email, AppName, AppVersion } = req.body
+    const selectQuery = `SELECT value FROM pins
+                        WHERE value = ? AND email = ? AND NOT EXISTS (
+                            SELECT id FROM users
+                            WHERE pins.email = users.email
+                        )`;
+
+    db.query(selectQuery, [pin, email], async (error, result) => {
+        if (error) return errorResponse(res, error)
+        if (!result.length) return errorResponse(res, 'Provided pin is not correct.', 409)
+
+        // hash password
+        const salt = await bcrypt.genSalt(10);
+        const encryptedPassword = await bcrypt.hash(password, salt)
+
+        // save user data
+        const insertQuery = 'INSERT INTO users (username, email, password, ip, app_name, app_version) VALUES (?, ?, ?, ?, ?, ?)';
+        db.query(insertQuery, [username, email, encryptedPassword, requestIP.getClientIp(req), AppName, AppVersion], (error, result) => {
+            if (error) return errorResponse(res, error)
+
+            // reset pin data after registration
+            const resetPinQuery = 'UPDATE pins SET requestTimes = 0 WHERE email = ?';
+            db.query(resetPinQuery, [email]);
+
+            // generate token
+            const token = user.updateUserToken(result.insertId)
+
+            const selectQuery = 'SELECT * FROM users WHERE id = ?';
+            db.query(selectQuery, [result.insertId], (dbError, userData) => {
+                if (dbError) return dbError;
+
+                let data = extractFromObj(userData[0], ['password', 'pin', 'jwt_token', 'passwordRequestTimes'])
+
+                // create user  config file
+                const uploadsError = handleUploadsDir(data)
+                if (uploadsError) return errorResponse(res, uploadsError)
+
+                res.status(201).send({ status: "success", token, data })
+            })
+        })
+    })
 })
