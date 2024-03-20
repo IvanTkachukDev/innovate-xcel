@@ -1,9 +1,12 @@
 const router = require('express').Router();
 const OpenAI = require('openai')
+const textToSpeech = require('@google-cloud/text-to-speech');
 
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY
 });
+
+const client = new textToSpeech.TextToSpeechClient();
 
 process.env.GOOGLE_APPLICATION_CREDENTIALS = "./key-file.json";
 
@@ -51,5 +54,24 @@ router.post('/generate', async (req, res) => {
 });
 
 router.post('/synthesize', async (req, res) => {
+    try {
+        const request = {
+            input: { text: req.body.text },
+            voice: { languageCode: 'en-US', name: 'en-US-Standard-F' },
+            audioConfig: {
+                audioEncoding: 'MP3',
+                effectsProfileId: ['small-bluetooth-speaker-class-device'],
+                pitch: 0,
+                speakingRate: 1
+            },
+        };
 
+        const [response] = await client.synthesizeSpeech(request);
+        const audioContent = response.audioContent;
+        res.set('Content-Type', 'audio/pm3');
+        res.send(audioContent);
+    } catch (error) {
+        console.error(`Error at /synthesize endpoint: ${error}`);
+        res.status(500).send('Error in synthesizing speech');
+    }
 });
