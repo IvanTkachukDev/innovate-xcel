@@ -196,8 +196,8 @@ router.post('/send-pin', (req, res) => {
     const { identifier } = req.body;
 
     // check if user with provided data exists and get email
-    const selectPinQuery = 'SELECT users.email, pins.updated_at FROM users LEFT JOIN pins ON pins.email = users.email WHERE users.email = ? || product_key = ?';
-    db.query(selectPinQuery, [identifier, identifier], (error, result) => {
+    const selectPinQuery = 'SELECT users.email, pins.updated_at FROM users LEFT JOIN pins ON pins.email = users.email WHERE users.email = ?';
+    db.query(selectPinQuery, [identifier], (error, result) => {
         if (error) return errorResponse(res, error);
         if (!result[0]) return errorResponse(res, 'Provided value not found in database. Make sure it is correct.', 409)
 
@@ -239,6 +239,36 @@ router.post('/send-pin', (req, res) => {
 
 
 // ==== RESET PASSWORD ==== //
-router.post('/reset-password', (req, res) => { })
+router.post('/reset-password', (req, res) => {
+    const validationErrors = auth.passwordValidation(req.body)
+    if (validationErrors) return errorResponse(res, validationErrors.details[0].message)
+
+    const { pin, email, password } = req.body
+
+    const selectQuery = `SELECT value FROM pins
+                        WHERE value = ? AND email = ? AND EXISTS (
+                            SELECT id FROM users
+                            WHERE pins.email = users.email
+                        )`;
+
+    db.query(selectQuery, [pin, email], async (error, result) => {
+        if (error) return errorResponse(res, error)
+        if (!result.length) return errorResponse(res, 'Provided pin is not correct.', 409)
+
+        // hash password
+        const salt = await bcrypt.genSalt(10);
+        const encryptedPassword = await bcrypt.hash(password, salt)
+
+        const resetPassQuery = 'UPDATE users SET password = ? WHERE email = ?';
+        db.query(resetPassQuery, [encryptedPassword, email], (error) => {
+            if (error) return errorResponse(res, error)
+
+            const resetPinQuery = 'UPDATE pins SET requestTimes = 0, value = ? WHERE email = ?';
+            db.query(resetPinQuery, [0, email]);
+
+            res.status(200).send({ status: "success", message: "Your password has been successfully updated" })
+        });
+    })
+})
 
 module.exports = router
