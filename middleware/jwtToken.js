@@ -3,8 +3,12 @@ const { errorResponse } = require('../components/utils')
 
 // routes exception
 const routesExceptions = [
+    '/lightconverse/api/user/validate-email',
     '/innovate-xcel/api/user/register',
-    '/innovate-xcel/api/user/login'
+    '/innovate-xcel/api/user/login',
+    '/lightconverse/api/user/verify-token',
+    '/lightconverse/api/user/send-pin',
+    '/lightconverse/api/user/reset-password'
 ]
 
 
