@@ -35,6 +35,24 @@ class Authentication {
 
         return loginSchema.validate(data).error;
     }
+
+    identifierValidation(data) {
+        const identifierSchema = Joi.object({
+            identifier: Joi.string().min(2).max(100).required()
+        });
+
+        return identifierSchema.validate(data).error;
+    }
+
+    passwordValidation(data) {
+        const passwordSchema = Joi.object({
+            password: Joi.string().min(8).max(255).required(),
+            email: Joi.string().min(6).max(100).required().email(),
+            pin: Joi.number().min(0).max(9999).required()
+        });
+
+        return passwordSchema.validate(data).error;
+    }
 }
 
 module.exports = Authentication

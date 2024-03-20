@@ -186,3 +186,13 @@ router.post('/login', (req, res) => {
             });
     })
 })
+
+
+// ==== SEND PIN TO EMAIL ==== //
+router.post('/send-pin', (req, res) => { })
+
+
+// ==== RESET PASSWORD ==== //
+router.post('/reset-password', (req, res) => { })
+
+module.exports = router
