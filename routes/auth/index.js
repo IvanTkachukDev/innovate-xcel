@@ -189,7 +189,53 @@ router.post('/login', (req, res) => {
 
 
 // ==== SEND PIN TO EMAIL ==== //
-router.post('/send-pin', (req, res) => { })
+router.post('/send-pin', (req, res) => {
+    const validationErrors = auth.identifierValidation(req.body);
+    if (validationErrors) return errorResponse(res, validationErrors.details[0].message);
+
+    const { identifier } = req.body;
+
+    // check if user with provided data exists and get email
+    const selectPinQuery = 'SELECT users.email, pins.updated_at FROM users LEFT JOIN pins ON pins.email = users.email WHERE users.email = ? || product_key = ?';
+    db.query(selectPinQuery, [identifier, identifier], (error, result) => {
+        if (error) return errorResponse(res, error);
+        if (!result[0]) return errorResponse(res, 'Provided value not found in database. Make sure it is correct.', 409)
+
+        const pin = Math.floor(Math.random() * 9000) + 1000;
+        const email = result[0].email
+
+        let pinQuery = 'UPDATE pins SET requestTimes = requestTimes + 1, value = ? WHERE email = ? AND requestTimes <> 3';
+        // if no data about user in pins table found create new
+        if (!result[0].updated_at) {
+            pinQuery = 'INSERT INTO pins (value, email, requestTimes) VALUES (?, ?, 1)';
+        }
+
+        // update pin
+        db.query(pinQuery, [pin, email], (error, updatedResult) => {
+            if (error) return errorResponse(res, error);
+
+            if (updatedResult.affectedRows === 0) {
+                // if no pin was updated, so the pin requests times are over limit
+                const hoursLeft = Math.floor((new Date() - new Date(result[0].updated_at)) / (1000 * 60 * 60));
+
+                // check if the last request was made more the N hours 
+                if (hoursLeft <= (process.env.UPDATE_DATA_EACH_HOURS || 5)) {
+                    return errorResponse(res, 'Too many pin requests. Please try again later.', 429);
+                } else {
+                    // reset pin if it was requested long enough time ago
+                    const resetPinQuery = 'UPDATE pins SET requestTimes = 0, value = ? WHERE email = ?';
+                    db.query(resetPinQuery, [pin, email], (error) => {
+                        if (error) return errorResponse(res, error);
+
+                        sendPinToEmail(res, email, pin)
+                    });
+                }
+            } else {
+                sendPinToEmail(res, email, pin)
+            }
+        });
+    })
+})
 
 
 // ==== RESET PASSWORD ==== //
