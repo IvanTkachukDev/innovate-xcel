@@ -188,6 +188,30 @@ router.post('/login', (req, res) => {
 })
 
 
+// ==== TOKEN ==== //
+router.get('/verify-token', async (req, res) => {
+    const token = req.headers['auth-token'];
+
+    if (!token) return errorResponse(res, 'Token is required')
+
+    try {
+        const decodedToken = jwt.verify(token, process.env.TOKEN_SECRET);
+        const insertQuery = 'SELECT jwt_token FROM users WHERE jwt_token = ?';
+        db.query(insertQuery, [token], (error, result) => {
+            if (error) return errorResponse(res, error)
+
+            if (result[0] && result[0].jwt_token) {
+                return res.status(200).send(decodedToken)
+            } else return errorResponse(res, "Token is not valid.", 401);
+
+        })
+
+    } catch (error) {
+        return errorResponse(res, 'Invalid token', 401)
+    }
+})
+
+
 // ==== SEND PIN TO EMAIL ==== //
 router.post('/send-pin', (req, res) => {
     const validationErrors = auth.identifierValidation(req.body);
