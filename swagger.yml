@@ -1,0 +1,487 @@
+swagger: "2.0"
+info:
+  version: "1.0.0"
+  title: NodeJs and Express API for innovate-xcel project
+basePath: /api
+tags:
+  - name: Auth
+    description: Endpoints related to user authentication
+  - name: File
+    description: Endpoints related to file management
+paths:
+  /user/validate-email:
+    post:
+      tags:
+        - Auth
+      summary: Validate user email
+      description: Check if a provided email address exists sending on it 4 long pin.
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          name: email
+          description: Email address to validate.
+          required: true
+          schema:
+            type: string
+            example: "testuser1@test.com"
+      responses:
+        "201":
+          description: EMail is not used.
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                example: "succcess"
+              message:
+                type: string
+                example: "We've just sent a verification PIN to your email address. Please check your inbox and paste it in the provided field to complete the verification process. If you haven't received the email, please make sure you provided correct email."
+              pin:
+                type: integer
+                example: 5435
+        "400":
+          description: Provided value does not meet the requirements.
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                example: "failed"
+              message:
+                type: string
+                example: "'email' is required."
+        "409":
+          description: Provided email address is registered in the database.
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                example: "failed"
+              message:
+                type: string
+                example: "User with the provided email already exists."
+        "429":
+          description: Too many requests have beed sent in a given amount of time.
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                example: "failed"
+              message:
+                type: string
+                example: "Too many pin requests. Please try again later"
+
+  /user/register:
+    post:
+      tags:
+        - Auth
+      summary: Register a new user
+      description: Endpoint to register a new user
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          name: user
+          description: User object including name, email, and password for registration
+          required: true
+          schema:
+            $ref: "#/definitions/RegisterCredentials"
+      responses:
+        "201":
+          description: User registered successfully
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                description: Status message indicating success
+                example: "success"
+              token:
+                type: string
+                description: JWT token for authentication
+                example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3MDMxNjIwMTgsImV4cCI6MTcwMzE4MzYxOH0.GcrdN6W9TrLLeDi6vdgOFJTIxr6szSf4wjXBT8qHWJE"
+              data:
+                description: User's data
+                $ref: "#/definitions/User"
+        "400":
+          description: Provided data does not meet the requirements.
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                example: "failed"
+              message:
+                type: string
+        "409":
+          description: The PIN provided by the user does not match database records.
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                example: "failed"
+              message:
+                type: string
+                example: "Provided pin is not correct."
+
+  /user/login:
+    post:
+      tags:
+        - Auth
+      summary: User login
+      description: Endpoint for user login
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          name: credentials
+          description: Endpoint for user login with email (or name) and password for authentication.
+          required: true
+          schema:
+            $ref: "#/definitions/LoginCredentials"
+      responses:
+        "200":
+          description: User logged in successfully, returns JWT token and user details
+          headers:
+            auth-token:
+              type: string
+              description: JWT token for authentication
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                description: Status message indicating success
+                example: "success"
+              token:
+                type: string
+                description: JWT token for authentication
+                example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOjEsImlhdCI6MTcwMDU2MzIyNywiZXhwIjoxNzAwNTYzMjg3fQ.wfaKyobq12xhWLuqFNlHDMSBVD2xklPvH4ZrgL8p6F4"
+              user:
+                $ref: "#/definitions/User"
+        "400":
+          description: Invalid request due to incorrect or missing data provided by the user.
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                example: "failed"
+              message:
+                type: string
+                example: "Provided email is required."
+        "401":
+          description: Invalid password or user not found
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                example: "failed"
+              message:
+                type: string
+                example: "Invalid password"
+        "409":
+          description: User provided data does not exist.
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                example: "failed"
+              message:
+                type: string
+                example: "User with the provided email does not exist."
+        "429":
+          description: Too many requests have beed sent in a given amount of time.
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                example: "failed"
+              message:
+                type: string
+                example: "Excessive login attempts with incorrect passwords. Please try again later."
+
+  /user/verify-token:
+    get:
+      tags:
+        - Auth
+      summary: Verify JWT token
+      description: Endpoint to check the validity and expiration of a JWT token. Validates the token by verifying its signature and contained data.
+      produces:
+        - application/json
+      parameters:
+        - in: header
+          name: auth-token
+          description: JWT token to verify
+          required: true
+          type: string
+      responses:
+        "200":
+          description: Token is valid
+          schema:
+            $ref: "#/definitions/decodedToken"
+        "400":
+          description: Token is required
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                example: "failed"
+              message:
+                type: string
+                example: "Token is required"
+        "401":
+          description: Invalid token
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                example: "failed"
+              message:
+                type: string
+                example: "Invalid token"
+
+  /user/send-pin:
+    post:
+      tags:
+        - Auth
+      summary: Send PIN to user's email
+      description: Send PIN to user's email to reset password
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          name: identifier
+          description: Email used to register a product.
+          required: true
+          schema:
+            type: string
+            example: "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed"
+      responses:
+        "201":
+          description: Email key is correct
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                example: "succcess"
+              message:
+                type: string
+                example: "We've just sent a verification PIN to your email address. Please check your inbox and paste it in the provided field to complete the verification process."
+              pin:
+                type: integer
+                example: 5435
+        "400":
+          description: Provided value is not correct. Key is required and must be a string type 36 characters long.
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                example: "failed"
+              message:
+                type: string
+                example: "'identifier' is required."
+        "409":
+          description: Provided value not found in the database
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                example: "failed"
+              message:
+                type: string
+                example: "Provided value not found in database. Make sure it is correct."
+
+  /user/reset-password:
+    post:
+      tags:
+        - Auth
+      summary: Reset user's password
+      description: Reset user's password by sent PIN
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          name: password
+          description: New password
+          required: true
+          schema:
+            type: string
+            example: "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed"
+        - in: body
+          name: email
+          description: User's email
+          required: true
+          schema:
+            type: string
+            example: "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed"
+        - in: body
+          name: pin
+          description: PIN is sent to a user's email. Must be min 0 max 9999 characters long.
+          required: true
+          schema:
+            type: string
+            example: 4324
+      responses:
+        "200":
+          description: User's password has been updated
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                example: "succcess"
+              message:
+                type: string
+                example: "Your password has been successfully updated"
+        "400":
+          description: Provided value does not meet the requirements.
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                example: "failed"
+              message:
+                type: string
+                example: "'pin' is required."
+        "409":
+          description: Provided pin not found in the database
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                example: "failed"
+              message:
+                type: string
+                example: "Provided pin is not correct."
+
+definitions:
+  RegisterCredentials:
+    type: object
+    required:
+      - username
+      - password
+      - pin
+      - email
+      - AppName
+      - AppVersion
+    properties:
+      username:
+        type: string
+        description: Must be min 2 max 255 characters long.
+        example: "John Doe"
+      password:
+        type: string
+        description: Must be min 8 max 255 characters long.
+        example: john_official432
+      pin:
+        type: string
+        description: PIN is sent to a user's email. Must be min 0 max 9999 characters long.
+        example: 1111
+      email:
+        type: string
+        description: User's email. Must be min 6 max 100 characters long.
+        example: user1@test.com
+      AppName:
+        type: string
+        description: Product's name. Must be at least 4 characters long.
+        example: user11999
+      AppVersion:
+        description: Products version.
+        example: user11999
+
+  LoginCredentials:
+    type: object
+    properties:
+      email:
+        type: string
+        description: User's email
+        example: user1@test.com
+      password:
+        type: string
+        description: User's password
+        example: user11999
+
+  decodedToken:
+    type: object
+    properties:
+      _id:
+        type: integer
+        description: Current logged-in user's ID
+        example: 42
+      iat:
+        type: integer
+        description: Timestamp indicating when the token was issued (issued at)
+        example: 1700563227
+      exp:
+        type: integer
+        description: Timestamp indicating the token's expiration time (expiration)
+        example: 1700563287
+
+  User:
+    type: object
+    properties:
+      id:
+        type: integer
+        example: 42
+      username:
+        type: string
+        description: User's name
+        example: "John Doe"
+      email:
+        type: string
+        description: User's email
+        example: "user1@test.com"
+      ip:
+        type: string
+        description: User's IP address. It is saved once when user regirters a product.
+        example: "176.36.183.37"
+      app_name:
+        type: string
+        description: Product's name.
+      app_version:
+        type: string
+        description: Product's version.
+        example: "1.0.0"
+      created_at:
+        type: string
+        description: Date and time when the user account was created (in ISO 8601 format)
+        example: "2023-11-20T11:41:03.000Z"
+      updated_at:
+        type: string
+        description: Date and time when the user account was updated (in ISO 8601 format)
+        example: "2023-11-20T11:41:03.000Z"
+
+  errorResponse:
+    type: object
+    properties:
+      status:
+        type: string
+        example: "failed"
+      message:
+        type: string
+        example: "File extension must be .glb"
